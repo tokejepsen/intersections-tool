@@ -68,10 +68,11 @@ def apply_pfxtoon(meshes=None):
     return [pfxtoon_shape.getParent(), pfxtoon_shape]
 
 
-def capture_frames(start_frame=None, end_frame=None):
+def capture_frames(camera=None, start_frame=None, end_frame=None):
     """Capture a viewport frames with pfx and black background.
 
     Args:
+        camera (str, optional): Name of camera, defaults to "persp"
         start_frame (float, optional): Defaults to current start frame.
         end_frame (float, optional): Defaults to current end frame.
 
@@ -88,7 +89,7 @@ def capture_frames(start_frame=None, end_frame=None):
 
     # Capture viewport.
     options = {
-        "camera": "persp1",
+        "camera": camera or "persp",
         "format": "image",
         "compression": "png",
         "start_frame": start_frame,
@@ -190,10 +191,11 @@ def delete_node(node):
         pymel.core.delete(node)
 
 
-def get_coverage(start_frame=None, end_frame=None):
+def get_coverage(camera=None, start_frame=None, end_frame=None):
     """Get coverage data set on multiple frames.
 
     Args:
+        camera (str, optional): Name of camera, defaults to "persp"
         start_frame (float, optional): Defaults to current start frame.
         end_frame (float, optional): Defaults to current end frame.
 
@@ -215,15 +217,17 @@ def get_coverage(start_frame=None, end_frame=None):
     render_layer_nodes = create_material_override()
 
     # Get white coverage in frames.
-    start_frame = start_frame or pymel.core.playbackOptions(
-        min=True, query=True
-    )
-    end_frame = end_frame or pymel.core.playbackOptions(
-        max=True, query=True
-    )
-    capture_directory = capture_frames(
-        start_frame=start_frame, end_frame=end_frame
-    )
+    kwargs = {
+        "start_frame": start_frame or pymel.core.playbackOptions(
+            min=True, query=True
+        ),
+        "end_frame": end_frame or pymel.core.playbackOptions(
+            max=True, query=True
+        ),
+        "camera": camera or "persp"
+    }
+
+    capture_directory = capture_frames(**kwargs)
 
     frame_count = start_frame
     for f in os.listdir(capture_directory):
