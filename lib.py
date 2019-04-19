@@ -1,7 +1,8 @@
 import os
-import time
+from shutil import rmtree
+from tempfile import gettempdir
 
-from capture import snap
+from capture import capture
 import png
 
 import pymel.core
@@ -53,21 +54,33 @@ def apply_pfxtoon(meshes):
     return [pfxtoon_shape.getParent(), pfxtoon_shape]
 
 
-def snap_frame(frame=None):
+def capture_frames(start_frame=None, end_frame=None):
     """Capture a single viewport frame with pfx and black background."""
 
+    # Create temporary folder.
+    temp_directory = os.path.join(gettempdir(), '.{}'.format(hash(os.times())))
+    os.makedirs(temp_directory)
+
+    # Clear selection so pfx does not get highlighted.
     pymel.core.select(clear=True)
+
+    # Capture viewport.
     options = {
         "camera": "persp1",
         "format": "image",
         "compression": "png",
-        "frame": frame or pymel.core.currentTime(),
+        "start_frame": start_frame,
+        "end_frame": end_frame,
+        "filename": os.path.join(temp_directory, "temp"),
+        "viewer": False,
         "viewport_options": {
             "strokes": True, "headsUpDisplay": False, "imagePlane": False
         },
         "display_options": {"displayGradient": False, "background": (0, 0, 0)},
     }
-    return snap(**options)
+    capture(**options)
+
+    return temp_directory
 
 
 def get_white_coverage(file_path):
@@ -140,42 +153,43 @@ def delete_node(node):
         pymel.core.delete(node)
 
 
-def get_frame_coverage(frame=None, delete_pfx=False):
-    """Get the coverage on a single frame."""
+def get_coverage(start_frame=None, end_frame=None):
+    """Get coverage data set on multiple frames."""
+    data = []
 
     # Create pfx.
     pfx, pfx_shape = apply_pfxtoon(pymel.core.ls(type="mesh"))
 
     # Create render layer for showing pfx only.
-    nodes = create_material_override()
+    render_layer_nodes = create_material_override()
 
-    # Get white coverage in frame.
-    frame_file = snap_frame(frame)
-    coverage = get_white_coverage(frame_file)
-
-    # Clean up.
-    os.remove(frame_file)
-
-    for node in nodes:
-        delete_node(node)
-
-    if delete_pfx:
-        pymel.core.delete(pfx)
-
-    return coverage
-
-
-def get_frames_coverage(start_frame=None, end_frame=None):
-    """Get a data set of coverage over a frame range."""
-
+    # Get white coverage in frames.
     start_frame = start_frame or pymel.core.playbackOptions(
         min=True, query=True
     )
     end_frame = end_frame or pymel.core.playbackOptions(
         max=True, query=True
     )
-    data = []
-    for frame in range(int(start_frame), int(end_frame) + 1):
-        data.append([frame, get_frame_coverage(frame)])
+    capture_directory = capture_frames(
+        start_frame=start_frame, end_frame=end_frame
+    )
+
+    frame_count = start_frame
+    for f in os.listdir(capture_directory):
+        data.append(
+            [
+                frame_count,
+                get_white_coverage(os.path.join(capture_directory, f))
+            ]
+        )
+        frame_count += 1
+
+    # Clean up.
+    rmtree(capture_directory, ignore_errors=True)
+
+    for node in render_layer_nodes:
+        delete_node(node)
+
+    pymel.core.delete(pfx)
 
     return data
