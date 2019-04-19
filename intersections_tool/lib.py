@@ -43,7 +43,7 @@ def apply_pfxtoon(meshes=None):
         "intersectionLineWidth": 10,
         "screenspaceWidth": 1,
         "intersectionColor": (1, 1, 1),
-        "maxPixelWidth": 15
+        "maxPixelWidth": 10
     }
     for attribute, value in preset.iteritems():
         pfxtoon_shape.attr(attribute).set(value)
@@ -93,6 +93,7 @@ def capture_frames(camera=None, start_frame=None, end_frame=None):
         "camera": camera or "persp",
         "format": "image",
         "compression": "png",
+        "width": 40,
         "start_frame": start_frame,
         "end_frame": end_frame,
         "filename": os.path.join(temp_directory, "temp"),
@@ -214,6 +215,13 @@ def get_coverage(camera=None,
     """
 
     data = []
+    camera = camera or "persp"
+    start_frame = start_frame or pymel.core.playbackOptions(
+        min=True, query=True
+    )
+    end_frame = end_frame or pymel.core.playbackOptions(
+        max=True, query=True
+    )
 
     # Create pfx.
     pfx, pfx_shape = apply_pfxtoon(pymel.core.ls(type="mesh"))
@@ -222,17 +230,11 @@ def get_coverage(camera=None,
     render_layer_nodes = create_material_override()
 
     # Get white coverage in frames.
-    kwargs = {
-        "start_frame": start_frame or pymel.core.playbackOptions(
-            min=True, query=True
-        ),
-        "end_frame": end_frame or pymel.core.playbackOptions(
-            max=True, query=True
-        ),
-        "camera": camera or "persp"
-    }
-
-    capture_directory = capture_frames(**kwargs)
+    capture_directory = capture_frames(
+        start_frame=start_frame,
+        end_frame=end_frame,
+        camera=camera
+    )
 
     frame_count = start_frame
     for f in os.listdir(capture_directory):
