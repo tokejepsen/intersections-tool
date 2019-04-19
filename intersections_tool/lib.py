@@ -2,8 +2,8 @@ import os
 from shutil import rmtree
 from tempfile import gettempdir
 
-from capture import capture
-import png
+from .vendor.capture import capture
+from .vendor import png
 
 import pymel.core
 from maya.app.renderSetup.model import renderSetup, typeIDs, renderLayer
