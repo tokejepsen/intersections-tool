@@ -6,6 +6,7 @@ from .vendor.capture import capture
 from .vendor import png
 
 import pymel.core
+from maya import cmds, mel
 from maya.app.renderSetup.model import renderSetup, typeIDs, renderLayer
 
 
@@ -191,13 +192,17 @@ def delete_node(node):
         pymel.core.delete(node)
 
 
-def get_coverage(camera=None, start_frame=None, end_frame=None):
+def get_coverage(camera=None,
+                 start_frame=None,
+                 end_frame=None,
+                 delete_pfx=True):
     """Get coverage data set on multiple frames.
 
     Args:
         camera (str, optional): Name of camera, defaults to "persp"
         start_frame (float, optional): Defaults to current start frame.
         end_frame (float, optional): Defaults to current end frame.
+        delete_pfx (bool, optional): Deletes the pfx node. Defaults to True.
 
     Returns:
         list: [
@@ -245,6 +250,99 @@ def get_coverage(camera=None, start_frame=None, end_frame=None):
     for node in render_layer_nodes:
         delete_node(node)
 
-    pymel.core.delete(pfx)
+    if delete_pfx:
+        pymel.core.delete(pfx)
 
     return data
+
+
+def error(message):
+    pymel.core.displayWarning(message)
+
+
+# Taken from https://github.com/BigRoy/maya-capture-gui/
+#                   blob/master/capture_gui/lib.py#L148
+def get_time_slider_range(highlighted=True,
+                          withinHighlighted=True,
+                          highlightedOnly=False):
+    """Return the time range from Maya's time slider.
+    Arguments:
+        highlighted (bool): When True if will return a selected frame range
+            (if there's any selection of more than one frame!) otherwise it
+            will return min and max playback time.
+        withinHighlighted (bool): By default Maya returns the highlighted range
+            end as a plus one value. When this is True this will be fixed by
+            removing one from the last number.
+    Returns:
+        list: List of two floats of start and end frame numbers.
+    """
+    if highlighted is True:
+        gPlaybackSlider = mel.eval(
+            "global string $gPlayBackSlider; "
+            "$gPlayBackSlider = $gPlayBackSlider;"
+        )
+        if cmds.timeControl(gPlaybackSlider, query=True, rangeVisible=True):
+            highlightedRange = cmds.timeControl(
+                gPlaybackSlider, query=True, rangeArray=True
+            )
+            if withinHighlighted:
+                highlightedRange[-1] -= 1
+            return highlightedRange
+    if not highlightedOnly:
+        return [
+            cmds.playbackOptions(query=True, minTime=True),
+            cmds.playbackOptions(query=True, maxTime=True)
+        ]
+
+
+def get_current_frame():
+    return pymel.core.currentTime(query=True)
+
+
+def set_current_frame(frame):
+    return pymel.core.currentTime(frame)
+
+
+# Taken from https://github.com/BigRoy/maya-capture-gui/blob/master
+#                                           /capture_gui/lib.py#L90
+def get_current_camera():
+    """Returns the currently active camera.
+    Searched in the order of:
+        1. Active Panel
+        2. Selected Camera Shape
+        3. Selected Camera Transform
+    Returns:
+        str: name of active camera transform
+    """
+
+    # Get camera from active modelPanel  (if any)
+    panel = cmds.getPanel(withFocus=True)
+    if cmds.getPanel(typeOf=panel) == "modelPanel":
+        cam = cmds.modelEditor(panel, query=True, camera=True)
+        # In some cases above returns the shape, but most often it returns the
+        # transform. Still we need to make sure we return the transform.
+        if cam:
+            if cmds.nodeType(cam) == "transform":
+                return cam
+            # camera shape is a shape type
+            elif cmds.objectType(cam, isAType="shape"):
+                parent = cmds.listRelatives(cam, parent=True, fullPath=True)
+                if parent:
+                    return parent[0]
+
+    # Check if a camShape is selected (if so use that)
+    cam_shapes = cmds.ls(selection=True, type="camera")
+    if cam_shapes:
+        return cmds.listRelatives(cam_shapes,
+                                  parent=True,
+                                  fullPath=True)[0]
+
+    # Check if a transform of a camShape is selected
+    # (return cam transform if any)
+    transforms = cmds.ls(selection=True, type="transform")
+    if transforms:
+        cam_shapes = cmds.listRelatives(transforms, shapes=True, type="camera")
+        if cam_shapes:
+            return cmds.listRelatives(cam_shapes,
+                                      parent=True,
+                                      fullPath=True)[0]
