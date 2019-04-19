@@ -9,8 +9,22 @@ import pymel.core
 from maya.app.renderSetup.model import renderSetup, typeIDs, renderLayer
 
 
-def apply_pfxtoon(meshes):
-    """Apply a white intersections pfx to all meshes in the scene."""
+def apply_pfxtoon(meshes=None):
+    """Apply a white intersections pfx to meshes.
+
+    Args:
+        meshes (list, optional): List of pymel.core.nodetypes.Mesh.
+            Defaults to all meshe in the scene.
+
+    Returns:
+        list: [
+            pfx_transform (pymel.core.nodetypes.Transform),
+            pfx_shape (pymel.core.nodetypes.PfxToon)
+        ]
+    """
+    # Apply to all meshes in scene if no meshes is provided.
+    if not meshes:
+        meshes = pymel.core.ls(type="mesh")
 
     # Find previous pfx and delete to make sure settings on pfx is correct.
     for node in pymel.core.ls(type="pfxToon"):
@@ -55,7 +69,15 @@ def apply_pfxtoon(meshes):
 
 
 def capture_frames(start_frame=None, end_frame=None):
-    """Capture a single viewport frame with pfx and black background."""
+    """Capture a viewport frames with pfx and black background.
+
+    Args:
+        start_frame (float, optional): Defaults to current start frame.
+        end_frame (float, optional): Defaults to current end frame.
+
+    Returns:
+        str: Directory with captured frames as png images.
+    """
 
     # Create temporary folder.
     temp_directory = os.path.join(gettempdir(), '.{}'.format(hash(os.times())))
@@ -84,7 +106,14 @@ def capture_frames(start_frame=None, end_frame=None):
 
 
 def get_white_coverage(file_path):
-    """Analyze the luminance coverage as 0-1 float in an image."""
+    """Analyze the luminance coverage as 0-1 float in an image.
+
+    Args:
+        file_path (str): Path to png image file to analyze.
+
+    Returns:
+        float: 0-1 value for the percentage of non-black pixels.
+    """
 
     img = png.Reader(filename=file_path)
     data = img.read()
@@ -103,7 +132,15 @@ def get_white_coverage(file_path):
 
 
 def create_material_override():
-    """Setup a render layer which only shows pfx shapes."""
+    """Setup a render layer which only shows pfx shapes.
+
+    Returns:
+        list: [
+            pymel.core.nodetypes.UseBackground: UseBackground shader,
+            pymel.core.nodetypes.ShadingEngine: Shading group,
+            maya.app.renderSetup.model.renderLayer.RenderLayer: render layer
+        ]
+    """
 
     # Create useBackground shader.
     shader = pymel.core.shadingNode(
@@ -146,7 +183,7 @@ def create_material_override():
 
 
 def delete_node(node):
-    """Convenience method for delete dag node and render layers."""
+    """Convenience method for deleting dag nodes and render layers."""
     if isinstance(node, renderLayer.RenderLayer):
         renderLayer.delete(node)
     else:
@@ -154,7 +191,21 @@ def delete_node(node):
 
 
 def get_coverage(start_frame=None, end_frame=None):
-    """Get coverage data set on multiple frames."""
+    """Get coverage data set on multiple frames.
+
+    Args:
+        start_frame (float, optional): Defaults to current start frame.
+        end_frame (float, optional): Defaults to current end frame.
+
+    Returns:
+        list: [
+            list: [
+                float: frame,
+                float: coverage of intersections
+            ]
+        ]
+    """
+
     data = []
 
     # Create pfx.
