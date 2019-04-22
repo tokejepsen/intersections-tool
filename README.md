@@ -24,6 +24,21 @@ This is a tool for analyzing and spotting mesh intersections. Original idea by [
 
 <img src="usage.gif"/>
 
+### Analyze with code
+
+```
+>>> import intersections_tool
+>>> coverage = intersections_tool.lib.get_coverage()
+>>> print coverage
+[[3.0, 0.004325], [4.0, 0.0042356]]
+```
+The analysis of frames happens by finding a 0-1 value per frame of how much the intersections cover the screen. A list of lists is returned that shows the frame and the coverage value.
+
+More details about the arguments for the coverage method can be found in the method description:
+```
+>>> print help(intersections_tool.lib.get_coverage)
+```
+
 ## Vendors
 
 - [maya-capture](https://github.com/abstractfactory/maya-capture)
